@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- FUNCIONES DE VALIDACIÓN ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Obtiene el rol del usuario actual desde la colección 'users'
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    // Denegar acceso global por defecto (Fail-safe)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REGLAS POR COLECCIÓN ---
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      // El usuario puede CREAR su perfil si es para sí mismo. El Admin puede crear CUALQUIER perfil.
+      allow create: if (isAuthenticated() && isOwner(userId) && request.resource.data.role == 'student') || isAdmin();
+      // Solo el admin puede cambiar el rol o borrar usuarios
+      allow update, delete: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated() && (isOwner(studentId) || isAdmin());
+      // El usuario puede inicializar sus datos de negocio (usado en registro). El Admin puede inicializar CUALQUIERA.
+      allow create: if (isAuthenticated() && isOwner(studentId)) || isAdmin();
+      // Las actualizaciones de planes y clases son exclusivas del Admin
+      allow update, delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+      // Catálogo público para usuarios logueados, edición exclusiva de admin
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /asistencias/{asistenciaId} {
+      // Consulta filtrada: data.student_id == request.auth.uid
+      allow read: if isAuthenticated() && (resource.data.student_id == request.auth.uid || isAdmin());
+      
+      // Solo el admin puede registrar una asistencia (Check-in)
+      allow create: if isAdmin() && 
+                    request.resource.data.status in ['success', 'failed'] &&
+                    request.resource.data.timestamp == request.time;
+    }
+  }
+}

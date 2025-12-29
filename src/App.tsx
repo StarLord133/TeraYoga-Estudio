@@ -1,35 +1,45 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import AdminDashboard from "./pages/admin/dashboard"
+import StudentDashboard from "./pages/student/dashboard"
+import LoginPage from "./pages/login"
+import RegisterPage from "./pages/register"
+
+import AlumnasList from "./pages/admin/alumnas/list"
+import AddAlumna from "./pages/admin/alumnas/add"
+import EditAlumna from "./pages/admin/alumnas/edit"
+import AlumnaProfile from "./pages/admin/alumnas/view"
+
+import PlansList from "./pages/admin/planes/list"
+import AddPlan from "./pages/admin/planes/add"
+import EditPlan from "./pages/admin/planes/edit"
+import PlanView from "./pages/admin/planes/view"
+
+import LandingPage from "./pages/landing"
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/alumnas" element={<AlumnasList />} />
+        <Route path="/admin/alumnas/nueva" element={<AddAlumna />} />
+        <Route path="/admin/alumnas/editar/:id" element={<EditAlumna />} />
+        <Route path="/admin/alumnas/perfil/:id" element={<AlumnaProfile />} />
+
+        <Route path="/admin/planes" element={<PlansList />} />
+        <Route path="/admin/planes/nuevo" element={<AddPlan />} />
+        <Route path="/admin/planes/editar/:id" element={<EditPlan />} />
+        <Route path="/admin/planes/ver/:id" element={<PlanView />} />
+
+        <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/dashboard" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    </Router>
   )
 }
 
 export default App
+
