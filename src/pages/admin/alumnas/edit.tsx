@@ -31,14 +31,9 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { useNavigate, useParams } from "react-router-dom"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc, collection, getDocs, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
-const PLANS = [
-    { id: "mensual", name: "Mensual", price: 1500, classes: 4, days: 30 },
-    { id: "trimestral", name: "Trimestral", price: 4000, classes: 12, days: 90 },
-    { id: "anual", name: "Anual", price: 12000, classes: 48, days: 365 },
-]
 
 export default function EditAlumna() {
     const { id } = useParams()
@@ -47,6 +42,9 @@ export default function EditAlumna() {
     const [isSaving, setIsSaving] = React.useState(false)
     const [success, setSuccess] = React.useState(false)
     const [phoneValue, setPhoneValue] = React.useState("")
+    const [countryCode, setCountryCode] = React.useState("+52")
+    const [plans, setPlans] = React.useState<any[]>([])
+    const [fetchingPlans, setFetchingPlans] = React.useState(true)
     const [formData, setFormData] = React.useState({
         name: "",
         email: "",
@@ -57,18 +55,44 @@ export default function EditAlumna() {
         async function fetchData() {
             if (!id) return;
             try {
+                // 1. Fetch Plans first
+                const qPlans = query(collection(db, "plans"), orderBy("price", "asc"))
+                const plansSnapshot = await getDocs(qPlans)
+                const plansList = plansSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                setPlans(plansList)
+                setFetchingPlans(false)
+
+                // 2. Fetch User Data
                 const userDoc = await getDoc(doc(db, "users", id));
                 if (userDoc.exists()) {
                     const data = userDoc.data();
+
+                    // Encontrar el ID del plan basado en el nombre guardado usando la lista recién traída
+                    const matchingPlan = plansList.find((p: any) => p.name === data.plan);
+
                     setFormData({
                         name: data.name || "",
                         email: data.email || "",
-                        plan: PLANS.find(p => p.name === data.plan)?.id || ""
+                        plan: matchingPlan?.id || ""
                     });
-                    setPhoneValue(data.phone || "");
+
+                    const fullPhone = data.phone || "";
+                    if (fullPhone.startsWith("+52")) {
+                        setCountryCode("+52");
+                        setPhoneValue(fullPhone.slice(3).trim());
+                    } else if (fullPhone.startsWith("+")) {
+                        setCountryCode(fullPhone.slice(0, 3));
+                        setPhoneValue(fullPhone.slice(3).trim());
+                    } else {
+                        setCountryCode("+52");
+                        setPhoneValue(fullPhone);
+                    }
                 }
             } catch (error) {
-                console.error("Error fetching alumna:", error);
+                console.error("Error fetching data:", error);
             } finally {
                 setIsLoading(false);
             }
@@ -77,12 +101,28 @@ export default function EditAlumna() {
     }, [id]);
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/[^\d+]/g, "");
-        const match = value.match(/^(\+?\d{1,3})(\d{3})(\d{3})(\d{4})$/);
-        if (match) {
-            value = `${match[1]} ${match[2]}-${match[3]}-${match[4]}`;
+        let value = e.target.value.replace(/[^\d-]/g, "");
+        const digits = value.replace(/\D/g, "");
+        if (digits.length <= 10) {
+            if (digits.length > 6) {
+                value = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+            } else if (digits.length > 3) {
+                value = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+            } else {
+                value = digits;
+            }
         }
         setPhoneValue(value);
+    }
+
+    const handleCountryCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let value = e.target.value;
+        if (!value.startsWith("+")) {
+            value = "+" + value.replace(/\D/g, "");
+        } else {
+            value = "+" + value.slice(1).replace(/\D/g, "");
+        }
+        setCountryCode(value);
     }
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -94,9 +134,9 @@ export default function EditAlumna() {
         const name = fData.get("name") as string
         const email = fData.get("email") as string
         const planId = fData.get("plan") as string
-        const normalizedPhone = phoneValue.trim().replace(/[^\d+]/g, "");
+        const normalizedPhone = (countryCode + phoneValue).trim().replace(/[^\d+]/g, "");
 
-        const selectedPlan = PLANS.find(p => p.id === planId)
+        const selectedPlan = plans.find(p => p.id === planId)
 
         try {
             await updateDoc(doc(db, "users", id), {
@@ -200,15 +240,25 @@ export default function EditAlumna() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Número Telefónico</Label>
-                                            <Input
-                                                id="phone"
-                                                name="phone"
-                                                type="tel"
-                                                placeholder="+52 000-000-0000"
-                                                value={phoneValue}
-                                                onChange={handlePhoneChange}
-                                                className="bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B]"
-                                            />
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="lada"
+                                                    name="lada"
+                                                    type="text"
+                                                    value={countryCode}
+                                                    onChange={handleCountryCodeChange}
+                                                    className="w-16 bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B] text-center px-1"
+                                                />
+                                                <Input
+                                                    id="phone"
+                                                    name="phone"
+                                                    type="tel"
+                                                    placeholder="000-000-0000"
+                                                    value={phoneValue}
+                                                    onChange={handlePhoneChange}
+                                                    className="flex-1 bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B]"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -219,10 +269,11 @@ export default function EditAlumna() {
                                             name="plan"
                                             defaultValue={formData.plan}
                                             required
+                                            disabled={fetchingPlans}
                                             className="flex h-10 w-full rounded-md border border-[#E8F5E9] bg-[#F9FAF7] px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E293B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
-                                            <option value="">Selecciona un plan...</option>
-                                            {PLANS.map(plan => (
+                                            <option value="">{fetchingPlans ? "Cargando planes..." : "Selecciona un plan..."}</option>
+                                            {plans.map(plan => (
                                                 <option key={plan.id} value={plan.id}>
                                                     {plan.name} - ${plan.price} ({plan.classes} clases)
                                                 </option>
