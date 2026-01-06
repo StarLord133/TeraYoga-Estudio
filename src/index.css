@@ -1,10 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Almarai:wght@300;400;700;800&family=Meow+Script&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Poppins', sans-serif;
+  --font-arabic: 'Almarai', sans-serif;
+  --font-script: 'Meow Script', cursive;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -43,46 +48,52 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-gold-50: #fbf8eb;
+  --color-gold-100: #f5edcb;
+  --color-gold-200: #ecdb9a;
+  --color-gold-300: #e0c261;
+  --color-gold-400: #d4a631;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #ba8d2a;
+  --color-gold-700: #976b24;
+  --color-gold-800: #7e5722;
+  --color-gold-900: #6b4a21;
 }
 
 :root {
   --radius: 0.75rem;
-  /* Zen Palette: White Background, Dark Slate Text, Soft Green Accent */
-  --background: oklch(0.99 0.01 106);
-  /* #F9FAF7 - White with a hint of warmth */
-  --foreground: oklch(0.25 0.04 250);
-  /* #1E293B - Dark Slate */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.04 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.04 250);
-  --primary: oklch(0.25 0.04 250);
-  /* Dark Slate for primary buttons */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0.02 143);
-  /* #E8F5E9 - Soft Green Background */
-  --secondary-foreground: oklch(0.25 0.04 250);
-  --muted: oklch(0.96 0.02 143);
-  --muted-foreground: oklch(0.45 0.03 250);
-  --accent: oklch(0.96 0.02 143);
-  --accent-foreground: oklch(0.25 0.04 250);
+  /* New Palette: White Background, Black/Slate Text, Purple Accents */
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #e1f2f3;
+  --secondary-foreground: #8a7f96;
+  --muted: #e1f2f3;
+  --muted-foreground: #8a7f96;
+  --accent: #e1f2f3;
+  --accent-foreground: #8a7f96;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.01 250);
-  --input: oklch(0.92 0.01 250);
-  --ring: oklch(0.25 0.04 250);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.25 0.04 250);
-  --sidebar-primary: oklch(0.25 0.04 250);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.96 0.02 143);
-  --sidebar-accent-foreground: oklch(0.25 0.04 250);
-  --sidebar-border: oklch(0.92 0.01 250);
-  --sidebar-ring: oklch(0.25 0.04 250);
+  --border: #e1f2f3;
+  --input: #e1f2f3;
+  --ring: #000000;
+  --chart-1: #000000;
+  --chart-2: #8a7f96;
+  --chart-3: #f5b0a2;
+  --chart-4: #ffcdcb;
+  --chart-5: #1e293b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e1f2f3;
+  --sidebar-accent-foreground: #8a7f96;
+  --sidebar-border: #e1f2f3;
+  --sidebar-ring: #000000;
 }
 
 .dark {
@@ -132,22 +143,61 @@
   h1,
   h2,
   h3,
-  h4,
-  .font-serif {
-    @apply font-serif;
+  h4 {
+    @apply font-display;
   }
 }
 
 @layer utilities {
-  .font-serif {
-    font-family: 'Playfair Display', serif;
+  .font-display {
+    font-family: var(--font-display);
   }
 
   .font-sans {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
+  }
+
+  .font-arabic {
+    font-family: var(--font-arabic);
+  }
+
+  .font-script {
+    font-family: var(--font-script);
   }
 
   .glass {
     @apply bg-background/60 backdrop-blur-lg border border-white/20;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  /* Custom Scrollbar for Modal */
+  .custom-scrollbar-purple::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar-purple::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar-purple::-webkit-scrollbar-thumb {
+    background: #8a7f96;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar-purple::-webkit-scrollbar-thumb:hover {
+    background: #1e293b;
   }
 }

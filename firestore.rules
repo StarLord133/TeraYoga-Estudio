@@ -45,19 +45,33 @@ service cloud.firestore {
     }
 
     match /plans/{planId} {
-      // Catálogo público para usuarios logueados, edición exclusiva de admin
-      allow read: if isAuthenticated();
+      // Catálogo público para la landing, edición exclusiva de admin
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /profesores/{profesorId} {
+      // Información pública para la landing
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /clases/{claseId} {
+      allow read: if true; // Público para la landing
       allow write: if isAdmin();
     }
 
     match /asistencias/{asistenciaId} {
-      // Consulta filtrada: data.student_id == request.auth.uid
+      // Permitir lectura si el usuario es el dueño de la asistencia o admin
       allow read: if isAuthenticated() && (resource.data.student_id == request.auth.uid || isAdmin());
       
-      // Solo el admin puede registrar una asistencia (Check-in)
+      // La creación la hace generalmente la Cloud Function (Admin SDK), 
+      // pero habilitamos la validación por si se usa el SDK de cliente en el futuro.
       allow create: if isAdmin() && 
                     request.resource.data.status in ['success', 'failed'] &&
-                    request.resource.data.timestamp == request.time;
+                    request.resource.data.fecha != null;
+      
+      allow update, delete: if isAdmin();
     }
   }
 }

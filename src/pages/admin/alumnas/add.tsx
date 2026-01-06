@@ -43,6 +43,7 @@ export default function AddAlumna() {
     const [success, setSuccess] = React.useState(false)
     const [error, setError] = React.useState<string | null>(null)
     const [phoneValue, setPhoneValue] = React.useState("")
+    const [countryCode, setCountryCode] = React.useState("+52")
 
     React.useEffect(() => {
         async function fetchPlans() {
@@ -64,16 +65,32 @@ export default function AddAlumna() {
     }, [])
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Solo permitir números y el signo + al inicio
-        let value = e.target.value.replace(/[^\d+]/g, "");
+        // Solo permitir números y -
+        let value = e.target.value.replace(/[^\d-]/g, "");
 
-        // Formatear: +52 123-456-7890 o similar
-        // Por ahora algo simple: XXX-XXX-XXXX
-        const match = value.match(/^(\+?\d{1,3})(\d{3})(\d{3})(\d{4})$/);
-        if (match) {
-            value = `${match[1]} ${match[2]}-${match[3]}-${match[4]}`;
+        // Limitar longitud y formatear si es necesario
+        // Ejemplo simple: 123-456-7890
+        const digits = value.replace(/\D/g, "");
+        if (digits.length <= 10) {
+            if (digits.length > 6) {
+                value = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+            } else if (digits.length > 3) {
+                value = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+            } else {
+                value = digits;
+            }
         }
         setPhoneValue(value);
+    }
+
+    const handleCountryCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let value = e.target.value;
+        if (!value.startsWith("+")) {
+            value = "+" + value.replace(/\D/g, "");
+        } else {
+            value = "+" + value.slice(1).replace(/\D/g, "");
+        }
+        setCountryCode(value);
     }
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -84,7 +101,8 @@ export default function AddAlumna() {
         const formData = new FormData(event.currentTarget)
         const name = formData.get("name") as string
         const email = formData.get("email") as string
-        const phone = phoneValue.trim().replace(/[^\d+]/g, "");
+        // Combinar lada + numero y limpiar caracteres no numéricos
+        const phone = (countryCode + phoneValue).trim().replace(/[^\d+]/g, "");
         const planId = formData.get("plan") as string
 
         try {
@@ -105,12 +123,17 @@ export default function AddAlumna() {
             console.error("Error adding alumna:", err)
 
             // Manejo de errores específicos de Firebase Functions
-            if (err.message?.includes("already-exists") || err.code === "functions/already-exists") {
+            if (err.code === "functions/already-exists" || err.message?.includes("already-exists")) {
                 setError("Este correo electrónico ya está registrado.")
             } else if (err.code === "functions/permission-denied") {
-                setError("No tienes permisos suficientes para crear alumnas.")
+                setError("No tienes permisos suficientes para realizar esta acción.")
+            } else if (err.code === "functions/unauthenticated") {
+                setError("Tu sesión ha expirado. Por favor inicia sesión de nuevo.")
+            } else if (err.message) {
+                // Mostrar el mensaje descriptivo que viene de la función
+                setError(err.message.replace("internal: ", ""))
             } else {
-                setError("Ocurrió un error inesperado. Inténtalo de nuevo.")
+                setError("Ocurrió un error inesperado al conectar con el servidor. Revisa tu conexión.")
             }
         } finally {
             setIsLoading(false)
@@ -189,15 +212,25 @@ export default function AddAlumna() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Número Telefónico</Label>
-                                            <Input
-                                                id="phone"
-                                                name="phone"
-                                                type="tel"
-                                                placeholder="+52 000-000-0000"
-                                                value={phoneValue}
-                                                onChange={handlePhoneChange}
-                                                className="bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B]"
-                                            />
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="lada"
+                                                    name="lada"
+                                                    type="text"
+                                                    value={countryCode}
+                                                    onChange={handleCountryCodeChange}
+                                                    className="w-16 bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B] text-center px-1"
+                                                />
+                                                <Input
+                                                    id="phone"
+                                                    name="phone"
+                                                    type="tel"
+                                                    placeholder="000-000-0000"
+                                                    value={phoneValue}
+                                                    onChange={handlePhoneChange}
+                                                    className="flex-1 bg-[#F9FAF7] border-[#E8F5E9] focus-visible:ring-[#1E293B]"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 

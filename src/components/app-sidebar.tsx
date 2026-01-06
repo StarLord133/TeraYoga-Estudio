@@ -8,13 +8,13 @@ import {
   SquareTerminal,
   Users,
   Map,
-  GalleryVerticalEnd,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
+import logo from "@/assets/imagotipo-purpura.png"
 import {
   Sidebar,
   SidebarContent,
@@ -32,17 +32,16 @@ const data = {
   },
   teams: [
     {
-      name: "Tera Yoga",
-      logo: GalleryVerticalEnd,
-      plan: "Estudio Premium",
+      name: "TeraYoga",
+      logo: logo,
+      plan: "ESTUDIO",
     },
   ],
   navMain: [
     {
       title: "Inicio",
-      url: "/admin",
+      url: "/admin/inicio",
       icon: SquareTerminal,
-      isActive: true,
     },
     {
       title: "Alumnas",
@@ -55,7 +54,7 @@ const data = {
         },
         {
           title: "Asistencias",
-          url: "#",
+          url: "/admin/asistencias",
         },
       ],
     },
@@ -81,11 +80,11 @@ const data = {
       items: [
         {
           title: "Clases",
-          url: "#",
+          url: "/admin/horarios",
         },
         {
           title: "Instructores",
-          url: "#",
+          url: "/admin/profesores",
         },
       ],
     },
@@ -108,7 +107,7 @@ const data = {
   projects: [
     {
       name: "Modo Kiosco",
-      url: "#",
+      url: "/admin/kiosco",
       icon: Map,
     },
   ],

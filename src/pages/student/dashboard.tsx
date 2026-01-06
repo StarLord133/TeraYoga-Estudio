@@ -1,29 +1,27 @@
 import * as React from "react"
 import {
-    QrCode,
     Calendar,
     Clock,
     User,
-    TrendingUp,
-    ChevronRight,
-    Bell,
     LogOut
 } from "lucide-react"
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useStudentData } from "@/hooks/use-student-data"
+import { Loader2, CheckCircle2 } from "lucide-react"
 import { auth } from "@/lib/firebase"
 import { useNavigate } from "react-router-dom"
+import StudentQRCard from "@/components/StudentQRCard"
 
 export default function StudentDashboard() {
     const navigate = useNavigate()
+    const { student, user, attendance, loading } = useStudentData()
+    const [activeTab, setActiveTab] = React.useState<'home' | 'schedule' | 'history'>('home')
 
     async function handleLogout() {
         try {
@@ -34,153 +32,144 @@ export default function StudentDashboard() {
         }
     }
 
+    if (loading) {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-[#ffffff]">
+                <Loader2 className="h-10 w-10 text-[#8a7f96] animate-spin" />
+            </div>
+        )
+    }
+
     return (
-        <div className="min-h-screen bg-[#F9FAF7] pb-20 pt-6 px-4 md:px-0 flex flex-col items-center">
+        <div className="min-h-screen bg-[#ffffff] pb-24 pt-6 px-4 md:px-0 flex flex-col items-center">
             {/* Header Alumna */}
-            <header className="w-full max-w-md flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 border-2 border-[#E8F5E9]">
-                        <AvatarImage src="/avatars/student.jpg" />
-                        <AvatarFallback className="bg-[#1E293B] text-white">AG</AvatarFallback>
+            <header className="w-full max-w-md flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <Avatar className="h-14 w-14 border-2 border-[#e1f2f3] shadow-sm">
+                        <AvatarImage src={user?.photoURL} />
+                        <AvatarFallback className="bg-[#8a7f96] text-white font-bold">
+                            {user?.name?.charAt(0) || "Y"}
+                        </AvatarFallback>
                     </Avatar>
                     <div>
-                        <h2 className="text-xl font-serif font-bold text-[#1E293B]">Hola, Ana</h2>
-                        <p className="text-xs text-muted-foreground font-sans">Namasté 🙏</p>
+                        <h2 className="text-2xl font-serif font-bold text-[#1e293b] leading-tight">
+                            Hola, {user?.name?.split(' ')[0] || "Namasté"}
+                        </h2>
+                        <p className="text-[10px] text-[#8a7f96] font-bold uppercase tracking-[0.2em]">{user?.plan || "Membresía Tera"}</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button className="relative p-2 rounded-full bg-white shadow-sm border border-[#E8F5E9]">
-                        <Bell className="h-5 w-5 text-[#1E293B]" />
-                        <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white" />
-                    </button>
                     <button
                         onClick={handleLogout}
-                        className="p-2 rounded-full bg-white shadow-sm border border-[#E8F5E9] hover:bg-red-50 hover:text-red-500 transition-colors"
+                        className="p-3 rounded-2xl bg-white shadow-sm border border-[#e1f2f3] text-[#1e293b]/40 hover:bg-red-50 hover:text-red-500 transition-all active:scale-95"
                     >
                         <LogOut className="h-5 w-5" />
                     </button>
                 </div>
             </header>
 
-            {/* Wallet Style membership Card */}
-            <div className="w-full max-w-md perspective-1000">
-                <Card className="bg-[#1E293B] text-white border-none shadow-2xl overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#E8F5E9]/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#E8F5E9]/5 rounded-full -ml-12 -mb-12 blur-xl" />
-
-                    <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <CardTitle className="text-2xl font-serif">Membresía Tera</CardTitle>
-                                <CardDescription className="text-[#E8F5E9]/60 font-sans">Plan Trimestral Premium</CardDescription>
-                            </div>
-                            <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-md">
-                                <TrendingUp className="h-6 w-6 text-[#E8F5E9]" />
-                            </div>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="flex flex-col items-center py-6">
-                        <div className="bg-white p-4 rounded-2xl shadow-inner mb-6 transition-transform group-hover:scale-105 duration-500">
-                            {/* Placeholder para QR */}
-                            <div className="h-40 w-40 bg-[#F9FAF7] rounded-xl flex items-center justify-center border-2 border-dashed border-[#1E293B]/10">
-                                <QrCode className="h-32 w-32 text-[#1E293B]" />
-                            </div>
+            <div className="w-full max-w-md space-y-8">
+                {activeTab === 'home' && (
+                    <>
+                        <div className="w-full">
+                            <StudentQRCard />
                         </div>
 
-                        <div className="w-full space-y-4">
-                            <div className="flex justify-between items-end">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] uppercase tracking-widest text-[#E8F5E9]/40">Clases Restantes</p>
-                                    <p className="text-3xl font-bold font-serif">08 <span className="text-sm font-sans font-normal text-[#E8F5E9]/60">/ 12</span></p>
+                        {/* Plan Expiration Section */}
+                        <Card className="border-none shadow-[0_20px_50px_rgba(138,127,150,0.1)] bg-white overflow-hidden rounded-[2.5rem]">
+                            <div className="h-1.5 w-full bg-[#8a7f96]" />
+                            <CardContent className="p-8">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xs font-bold text-[#8a7f96] uppercase tracking-widest">Estado del Plan</h3>
+                                    <Badge variant="secondary" className="bg-[#e1f2f3] text-[#8a7f96] font-bold border-none px-3 py-1 rounded-full text-[10px]">
+                                        {student?.clases_restantes ?? 0} clases restantes
+                                    </Badge>
                                 </div>
-                                <Badge variant="outline" className="border-[#E8F5E9]/30 text-[#E8F5E9] font-sans">
-                                    Socia Gold
-                                </Badge>
-                            </div>
+                                <Progress value={((student?.clases_restantes ?? 0) / 12) * 100} className="h-2.5 bg-[#e1f2f3]" />
+                                <div className="mt-5 flex items-center justify-between">
+                                    <p className="text-[11px] text-[#1e293b]/50 font-medium flex items-center">
+                                        <Calendar className="h-3.5 w-3.5 mr-2 text-[#8a7f96]" />
+                                        {student?.fecha_expiracion
+                                            ? `Expira el ${new Date(student.fecha_expiracion.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                                            : "Sin fecha de expiración"}
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {activeTab === 'history' && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between px-2">
+                            <h3 className="text-xl font-serif font-bold text-[#1e293b]">Tus Asistencias</h3>
+                            <Badge className="bg-[#e1f2f3] text-[#8a7f96] border-none font-bold uppercase tracking-wider text-[9px] px-3 py-1">
+                                Total: {attendance.length}
+                            </Badge>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Plan Expiration Section */}
-            <div className="w-full max-w-md mt-6 space-y-4">
-                <Card className="border-none shadow-sm bg-white">
-                    <CardContent className="pt-6">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-sm font-semibold text-[#1E293B] font-sans">Días para expirar</h3>
-                            <span className="text-sm font-bold text-[#1E293B]">12 días</span>
+                        <div className="space-y-4">
+                            {attendance.length === 0 ? (
+                                <div className="p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-[#e1f2f3]">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8a7f96]">No hay registros aún</p>
+                                </div>
+                            ) : (
+                                attendance.map((record) => (
+                                    <AttendanceItem key={record.id} record={record} />
+                                ))
+                            )}
                         </div>
-                        <Progress value={70} className="h-2 bg-[#E8F5E9]" />
-                        <p className="text-[11px] text-muted-foreground mt-3 flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" /> Expira el 15 de Abril, 2024
-                        </p>
-                    </CardContent>
-                </Card>
-
-                {/* Today's Classes */}
-                <div className="space-y-4 pt-2">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-serif font-bold text-[#1E293B]">Clases de Hoy</h3>
-                        <button className="text-xs text-[#1E293B]/60 font-sans hover:underline flex items-center">
-                            Ver todas <ChevronRight className="h-3 w-3 ml-1" />
-                        </button>
                     </div>
-
-                    <div className="space-y-3">
-                        <ClassItem
-                            time="08:00 AM"
-                            title="Vinyasa Flow"
-                            instructor="Elena R."
-                            level="Intermedio"
-                        />
-                        <ClassItem
-                            time="18:30 PM"
-                            title="Hatha Yoga"
-                            instructor="Marcos P."
-                            level="Todos los niveles"
-                        />
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* Mobile Nav Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8F5E9] flex items-center justify-around px-6 z-50">
-                <NavIcon icon={<User className="h-6 w-6" />} active />
-                <NavIcon icon={<Calendar className="h-6 w-6" />} />
-                <NavIcon icon={<Clock className="h-6 w-6" />} />
+            <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-lg border-t border-[#e1f2f3] flex items-center justify-around px-8 z-50 pb-4">
+                <NavIcon
+                    icon={<User className="h-6 w-6" />}
+                    active={activeTab === 'home'}
+                    onClick={() => setActiveTab('home')}
+                />
+                <NavIcon
+                    icon={<Clock className="h-6 w-6" />}
+                    active={activeTab === 'history'}
+                    onClick={() => setActiveTab('history')}
+                />
             </nav>
         </div>
     )
 }
 
-function ClassItem({ time, title, instructor, level }: {
-    time: string;
-    title: string;
-    instructor: string;
-    level: string
-}) {
-    return (
-        <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-[#E8F5E9] hover:border-[#1E293B]/20 transition-all cursor-pointer group">
-            <div className="text-center min-w-[60px]">
-                <p className="text-xs font-bold text-[#1E293B]">{time.split(' ')[0]}</p>
-                <p className="text-[10px] text-muted-foreground uppercase">{time.split(' ')[1]}</p>
-            </div>
-            <div className="flex-1 space-y-1">
-                <h4 className="text-sm font-bold text-[#1E293B] group-hover:text-[#1E293B] transition-colors">{title}</h4>
-                <p className="text-xs text-muted-foreground">👤 {instructor} • {level}</p>
-            </div>
-            <Badge variant="secondary" className="bg-[#E8F5E9] text-[#1E293B] text-[10px] font-sans">
-                Reservar
-            </Badge>
-        </div>
-    )
-}
 
-function NavIcon({ icon, active = false }: { icon: React.ReactNode, active?: boolean }) {
+function NavIcon({ icon, active = false, onClick }: { icon: React.ReactNode, active?: boolean, onClick: () => void }) {
     return (
-        <button className={`p-2 rounded-xl transition-all ${active ? 'bg-[#1E293B] text-white shadow-lg shadow-[#1E293B]/20' : 'text-[#1E293B]/40 hover:text-[#1E293B]'}`}>
+        <button
+            onClick={onClick}
+            className={`p-3 rounded-xl transition-all duration-300 ${active ? 'bg-[#8a7f96] text-white shadow-lg shadow-[#8a7f96]/20' : 'text-[#8a7f96]/40 hover:text-[#8a7f96]'}`}
+        >
             {icon}
         </button>
     )
+}
+
+function AttendanceItem({ record }: { record: any }) {
+    const date = record.fecha?.toDate ? record.fecha.toDate() : new Date();
+
+    return (
+        <div className="flex items-center justify-between p-5 bg-white rounded-[2rem] border border-[#e1f2f3] hover:shadow-lg transition-all transform hover:-translate-y-0.5 group">
+            <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-[#e1f2f3] flex items-center justify-center group-hover:bg-[#8a7f96] transition-colors">
+                    <CheckCircle2 className="h-6 w-6 text-[#8a7f96] group-hover:text-white" />
+                </div>
+                <div className="text-left">
+                    <p className="text-sm font-bold text-[#1e293b]">Check-in Exitoso</p>
+                    <p className="text-[10px] text-[#8a7f96] font-bold uppercase tracking-widest mt-1">
+                        {date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })} • {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                </div>
+            </div>
+            <Badge variant="outline" className="border-[#e1f2f3] text-[#8a7f96] bg-[#e1f2f3]/30 text-[9px] uppercase font-black px-3 py-1 rounded-full">
+                Validado
+            </Badge>
+        </div>
+    );
 }
