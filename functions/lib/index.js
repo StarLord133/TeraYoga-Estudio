@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserCreated = exports.processCheckIn = exports.createStudentOnboarding = void 0;
+exports.onUserCreated = exports.processCheckIn = exports.activateStudent = exports.createStudentOnboarding = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
@@ -86,6 +86,7 @@ exports.createStudentOnboarding = functions.https.onCall(async (data, context) =
         const days = selectedPlan.days || 30;
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + days);
+        expirationDate.setHours(23, 59, 59, 999);
         const batch = db.batch();
         const userRef = db.collection("users").doc(userRecord.uid);
         batch.set(userRef, {
@@ -95,7 +96,7 @@ exports.createStudentOnboarding = functions.https.onCall(async (data, context) =
             phone: phone || "",
             role: "student",
             plan: selectedPlan.name || "Sin plan",
-            status: "Activo",
+            status: "Pendiente registro",
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         const studentRef = db.collection("students").doc(userRecord.uid);
@@ -138,6 +139,32 @@ exports.createStudentOnboarding = functions.https.onCall(async (data, context) =
         throw new functions.https.HttpsError("internal", error.message || "Error inesperado al procesar el onboarding.");
     }
 });
+exports.activateStudent = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado.");
+    }
+    const userId = context.auth.uid;
+    const userRef = db.collection("users").doc(userId);
+    try {
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "Usuario no encontrado.");
+        }
+        const userData = userDoc.data();
+        if (userData?.role !== "student") {
+            throw new functions.https.HttpsError("permission-denied", "Solo las alumnas pueden activar su cuenta.");
+        }
+        await userRef.update({
+            status: "Activo",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        return { success: true };
+    }
+    catch (error) {
+        console.error("Error activating student:", error);
+        throw new functions.https.HttpsError("internal", error.message || "Error al activar la cuenta.");
+    }
+});
 exports.processCheckIn = functions
     .runWith({ memory: "512MB" })
     .https.onCall(async (data, context) => {
@@ -175,7 +202,7 @@ exports.processCheckIn = functions
             const now = admin.firestore.Timestamp.now();
             if (studentData.qr_token !== token) {
                 functions.logger.warn(`Intento de check-in con token inválido para: ${alumnaId}`);
-                throw new functions.https.HttpsError("permission-denied", "Código QR inválido o expirado.");
+                throw new functions.https.HttpsError("permission-denied", "Código QR no válido o ya procesado.");
             }
             if (studentData.clases_restantes <= 0) {
                 throw new functions.https.HttpsError("failed-precondition", "Sin clases disponibles.");

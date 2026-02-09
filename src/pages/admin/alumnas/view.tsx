@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+    MoreHorizontal,
     ArrowLeft,
     Calendar,
     Phone,
@@ -10,6 +11,7 @@ import {
     Plus,
     RefreshCw,
     CheckCircle2,
+    CreditCard,
 } from "lucide-react"
 
 import {
@@ -37,7 +39,7 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { useNavigate, useParams } from "react-router-dom"
-import { doc, updateDoc, collection, query, where, onSnapshot, orderBy, limit, Timestamp, getDocs } from "firebase/firestore"
+import { doc, updateDoc, collection, query, where, onSnapshot, orderBy, limit, Timestamp, getDocs, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -55,6 +57,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 
 export default function AlumnaProfile() {
@@ -67,6 +76,8 @@ export default function AlumnaProfile() {
     const [plans, setPlans] = React.useState<any[]>([])
     const [isUpdatingPlan, setIsUpdatingPlan] = React.useState(false)
     const [selectedPlanId, setSelectedPlanId] = React.useState("")
+    const [isPaidOnRenewal, setIsPaidOnRenewal] = React.useState(true)
+    const [isConfirmingPayment, setIsConfirmingPayment] = React.useState(false)
 
     React.useEffect(() => {
         async function fetchData() {
@@ -144,7 +155,8 @@ export default function AlumnaProfile() {
             await updateDoc(doc(db, "students", id), {
                 clases_restantes: plan.classes || 0,
                 current_plan_id: selectedPlanId,
-                fecha_expiracion: Timestamp.fromDate(expirationDate)
+                fecha_expiracion: Timestamp.fromDate(expirationDate),
+                payment_status: isPaidOnRenewal ? "pagado" : "pendiente"
             });
 
             await updateDoc(doc(db, "users", id), {
@@ -173,6 +185,37 @@ export default function AlumnaProfile() {
         } catch (error) {
             console.error("Error updating expiration:", error);
             toast.error("Error al actualizar vencimiento");
+        }
+    };
+
+    const handleConfirmPendingPayment = async () => {
+        if (!id) return;
+        try {
+            await updateDoc(doc(db, "students", id), {
+                payment_status: "pagado"
+            });
+            setIsConfirmingPayment(false);
+            toast.success("Pago confirmado correctamente");
+        } catch (error) {
+            console.error("Error confirming payment:", error);
+            toast.error("Error al confirmar el pago");
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!id) return;
+        if (!confirm("¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.")) {
+            return;
+        }
+
+        try {
+            await deleteDoc(doc(db, "users", id));
+            await deleteDoc(doc(db, "students", id));
+            toast.success("Alumna eliminada correctamente");
+            navigate("/admin/alumnas");
+        } catch (error) {
+            console.error("Error deleting alumna:", error);
+            toast.error("No se pudo eliminar el registro");
         }
     };
 
@@ -235,11 +278,41 @@ export default function AlumnaProfile() {
                                 </div>
                             </div>
                             <CardContent className="pt-16 pb-6">
-                                <div className="space-y-1 mb-6">
-                                    <h2 className="text-2xl font-bold text-[#1E293B] font-serif">{alumna.name}</h2>
-                                    <Badge variant="secondary" className="bg-[#e1f2f3] text-[#8a7f96] hover:bg-[#e1f2f3] border-none font-bold text-[10px] uppercase tracking-wider">
-                                        {alumna.status || "Activo"}
-                                    </Badge>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <h2 className="text-2xl font-bold text-[#1E293B] font-serif">{alumna.name}</h2>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <Badge variant="secondary" className="bg-[#e1f2f3] text-[#8a7f96] hover:bg-[#e1f2f3] border-none font-bold text-[10px] uppercase tracking-wider">
+                                                {alumna.status || "Activo"}
+                                            </Badge>
+                                            <Badge
+                                                variant="outline"
+                                                className={`font-bold text-[10px] uppercase tracking-wider border-none ${studentData?.payment_status === 'pagado'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-red-100 text-red-700'
+                                                    }`}
+                                            >
+                                                {studentData?.payment_status === 'pagado' ? 'Pagado' : 'Pendiente de Pago'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-[#8a7f96] hover:bg-[#e1f2f3]/50 rounded-lg">
+                                                <MoreHorizontal className="h-5 w-5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="rounded-xl border-[#e1f2f3]">
+                                            <DropdownMenuItem
+                                                className="text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer font-medium"
+                                                onClick={handleDelete}
+                                            >
+                                                Eliminar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
 
                                 <div className="space-y-4">
@@ -257,13 +330,32 @@ export default function AlumnaProfile() {
                                     </div>
                                 </div>
 
-                                <div className="mt-8">
+                                <div className="mt-8 space-y-3">
                                     <Button
                                         className="w-full bg-[#8a7f96] text-white hover:bg-[#6d6379] rounded-xl font-sans uppercase tracking-[0.2em] text-[10px] py-6"
                                         onClick={() => navigate(`/admin/alumnas/editar/${alumna.id}`)}
                                     >
                                         Editar Perfil
                                     </Button>
+                                    <Button
+                                        className="w-full bg-[#e1f2f3] text-[#8a7f96] hover:bg-[#8a7f96]/10 rounded-xl font-sans uppercase tracking-[0.2em] text-[10px] py-6 font-bold"
+                                        onClick={() => {
+                                            setSelectedPlanId(studentData?.current_plan_id || "");
+                                            setIsPaidOnRenewal(true);
+                                            setIsUpdatingPlan(true);
+                                        }}
+                                    >
+                                        Renueva Plan
+                                    </Button>
+                                    {studentData?.payment_status === 'pendiente' && (
+                                        <Button
+                                            className="w-full border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-sans uppercase tracking-[0.2em] text-[10px] py-6 font-bold"
+                                            variant="ghost"
+                                            onClick={() => setIsConfirmingPayment(true)}
+                                        >
+                                            <CreditCard className="h-3.5 w-3.5 mr-2" /> Realizar Pago Pendiente
+                                        </Button>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -432,6 +524,18 @@ export default function AlumnaProfile() {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            <div className="flex items-center space-x-3 p-4 bg-[#F9FAF7] rounded-2xl border border-[#e1f2f3]">
+                                <Checkbox
+                                    id="paid"
+                                    checked={isPaidOnRenewal}
+                                    onCheckedChange={(checked) => setIsPaidOnRenewal(!!checked)}
+                                    className="border-[#8a7f96] data-[state=checked]:bg-[#8a7f96] data-[state=checked]:text-white h-6 w-6 rounded-lg"
+                                />
+                                <label htmlFor="paid" className="text-sm font-bold text-[#1E293B] cursor-pointer">
+                                    Marcar como Pagado
+                                </label>
+                            </div>
                         </div>
                         <DialogFooter className="gap-2 sm:gap-3">
                             <Button variant="ghost" onClick={() => setIsUpdatingPlan(false)} className="rounded-2xl h-11 px-6 font-bold uppercase tracking-widest text-[10px] text-[#475569]">
@@ -445,6 +549,38 @@ export default function AlumnaProfile() {
                                 Confirmar Actualización
                             </Button>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Modal para confirmar pago pendiente */}
+                <Dialog open={isConfirmingPayment} onOpenChange={setIsConfirmingPayment}>
+                    <DialogContent className="sm:max-w-[400px] bg-white rounded-[2.5rem] border-none shadow-2xl p-8">
+                        <div className="flex flex-col items-center text-center space-y-6">
+                            <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
+                                <CreditCard className="h-8 w-8 text-green-600" />
+                            </div>
+                            <div className="space-y-2">
+                                <DialogTitle className="font-serif text-2xl text-[#1E293B]">¿Realizar Pago Pendiente?</DialogTitle>
+                                <DialogDescription className="text-[#475569]">
+                                    Se marcará el plan actual de {alumna.name} como pagado.
+                                </DialogDescription>
+                            </div>
+                            <div className="flex gap-4 w-full pt-4">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setIsConfirmingPayment(false)}
+                                    className="flex-1 rounded-2xl h-12 font-bold uppercase tracking-widest text-[10px] text-[#475569] bg-[#F9FAF7]"
+                                >
+                                    No
+                                </Button>
+                                <Button
+                                    onClick={handleConfirmPendingPayment}
+                                    className="flex-1 bg-green-600 text-white hover:bg-green-700 rounded-2xl h-12 font-bold uppercase tracking-widest text-[10px] shadow-md transition-all active:scale-95"
+                                >
+                                    Sí, Confirmar
+                                </Button>
+                            </div>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </SidebarInset>

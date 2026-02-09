@@ -78,13 +78,13 @@ const Nav = () => {
         <motion.nav
             initial={{ y: -100 }}
             animate={{ y: 0 }}
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? "bg-white/80 backdrop-blur-md shadow-sm py-4" : "bg-transparent py-6"
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? "bg-white/80 backdrop-blur-md shadow-sm py-3 md:py-4" : "bg-transparent py-4 md:py-6"
                 }`}
         >
-            <div className="container mx-auto px-6 flex items-center justify-between">
-                <Link to="/" className="flex items-center gap-3">
-                    <img src={logo} alt="TeraYoga" className="h-10 w-auto" />
-                    <span className="text-2xl font-display text-black tracking-tight">TeraYoga Estudio</span>
+            <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
+                <Link to="/" className="flex items-center gap-2 md:gap-3">
+                    <img src={logo} alt="TeraYoga" className="h-10 md:h-10 w-auto" />
+                    <span className="text-xl md:text-2xl font-display text-black tracking-tight leading-tight">TeraYoga <span className="block md:inline">Estudio</span></span>
                 </Link>
 
                 <div className="hidden md:flex items-center gap-8">
@@ -99,10 +99,10 @@ const Nav = () => {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
                     <Button
                         size="sm"
-                        className="bg-black text-white hover:bg-[#8a7f96] rounded-full px-6 transition-colors shadow-sm"
+                        className="bg-black text-white hover:bg-[#8a7f96] rounded-full px-4 md:px-6 h-8 md:h-10 text-[15px] md:text-sm transition-colors shadow-sm"
                         onClick={() => navigate("/login")}
                     >
                         Soy estudiante
@@ -228,10 +228,10 @@ export default function LandingPage() {
                     >
                         <motion.h1
                             variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }}
-                            className="text-6xl md:text-8xl font-display font-bold !text-black mb-6 leading-tight"
+                            className="!text-black mb-8 tracking-tighter leading-none"
                         >
-                            Namasté en <br />
-                            <span className="font-script font-normal !text-[#8a7f96]">TeraYoga</span>
+                            <span className="text-5xl md:text-5xl font-display font-bold block opacity-90 mb-2">Namasté en</span>
+                            <span className="font-script font-normal !text-[#8a7f96] text-7xl md:text-[10rem] block leading-[0.8]">TeraYoga</span>
                         </motion.h1>
 
                         <motion.p

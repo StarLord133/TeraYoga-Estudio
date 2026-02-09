@@ -1,7 +1,8 @@
 import * as React from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { verifyPasswordResetCode, confirmPasswordReset, signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { httpsCallable } from "firebase/functions"
+import { auth, functions } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +17,7 @@ export default function AuthActionHandler() {
 
     const [email, setEmail] = React.useState<string | null>(null)
     const [newPassword, setNewPassword] = React.useState("")
+    const [confirmPassword, setConfirmPassword] = React.useState("")
     const [showPassword, setShowPassword] = React.useState(false)
     const [status, setStatus] = React.useState<"verifying" | "ready" | "success" | "error">("verifying")
     const [error, setError] = React.useState<string | null>(null)
@@ -46,6 +48,11 @@ export default function AuthActionHandler() {
         e.preventDefault()
         if (!oobCode || !newPassword) return
 
+        if (newPassword !== confirmPassword) {
+            setError("Las contraseñas no coinciden.")
+            return
+        }
+
         setIsLoading(true)
         setError(null)
 
@@ -57,6 +64,11 @@ export default function AuthActionHandler() {
             if (email) {
                 try {
                     await signInWithEmailAndPassword(auth, email, newPassword)
+
+                    // 3. Activar cuenta
+                    const activateFn = httpsCallable(functions, "activateStudent");
+                    await activateFn();
+
                     setStatus("success")
                     // Redirigir al dashboard después de 2 segundos
                     setTimeout(() => navigate("/student"), 2000)
@@ -178,9 +190,28 @@ export default function AuthActionHandler() {
                             </div>
                         </div>
 
+                        <div className="space-y-1.5">
+                            <Label className="text-[#1E293B]/70 text-xs ml-1 font-semibold uppercase tracking-wider">Confirmar Contraseña</Label>
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="Repite tu contraseña"
+                                required
+                                className="h-12 bg-[#F9FAF7] border-[#E8F5E9] text-[#1E293B] rounded-xl focus:ring-[#4A5D4E]/20"
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-lg text-sm transition-all animate-in fade-in slide-in-from-top-1">
+                                <AlertCircle className="h-4 w-4" />
+                                {error}
+                            </div>
+                        )}
+
                         <Button
                             className="w-full h-12 bg-[#1E293B] hover:bg-[#334155] text-white font-bold rounded-xl transition-all shadow-lg shadow-slate-200"
-                            disabled={isLoading || !newPassword}
+                            disabled={isLoading || !newPassword || !confirmPassword}
                         >
                             {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirmar y Entrar"}
                         </Button>

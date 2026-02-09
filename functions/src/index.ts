@@ -80,6 +80,7 @@ export const createStudentOnboarding = functions.https.onCall(async (data, conte
 
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + days);
+        expirationDate.setHours(23, 59, 59, 999); // Expira al final del día
 
         // 6. Crear documentos en Firestore
         const batch = db.batch();
@@ -92,7 +93,7 @@ export const createStudentOnboarding = functions.https.onCall(async (data, conte
             phone: phone || "",
             role: "student",
             plan: selectedPlan.name || "Sin plan",
-            status: "Activo",
+            status: "Pendiente registro",
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
@@ -144,6 +145,37 @@ export const createStudentOnboarding = functions.https.onCall(async (data, conte
             "internal",
             error.message || "Error inesperado al procesar el onboarding."
         );
+    }
+});
+
+export const activateStudent = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado.");
+    }
+
+    const userId = context.auth.uid;
+    const userRef = db.collection("users").doc(userId);
+
+    try {
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "Usuario no encontrado.");
+        }
+
+        const userData = userDoc.data();
+        if (userData?.role !== "student") {
+            throw new functions.https.HttpsError("permission-denied", "Solo las alumnas pueden activar su cuenta.");
+        }
+
+        await userRef.update({
+            status: "Activo",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error activating student:", error);
+        throw new functions.https.HttpsError("internal", error.message || "Error al activar la cuenta.");
     }
 });
 
@@ -203,7 +235,7 @@ export const processCheckIn = functions
                 // 2. Validación de Token QR (Seguridad contra capturas de pantalla viejas)
                 if (studentData.qr_token !== token) {
                     functions.logger.warn(`Intento de check-in con token inválido para: ${alumnaId}`);
-                    throw new functions.https.HttpsError("permission-denied", "Código QR inválido o expirado.");
+                    throw new functions.https.HttpsError("permission-denied", "Código QR no válido o ya procesado.");
                 }
 
                 // 3. Validación de Negocio

@@ -28,6 +28,7 @@ const ScannerKiosk: React.FC = () => {
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const lastScansRef = useRef<{ [studentId: string]: number }>({});
+    const isProcessingRef = useRef(false);
 
     /**
      * Generates a beep/buzz sound using the Web Audio API to avoid external asset dependencies
@@ -98,13 +99,17 @@ const ScannerKiosk: React.FC = () => {
             playSound('error');
             setTimeout(resetScanner, 3000);
         } finally {
+            isProcessingRef.current = false;
             setIsProcessing(false);
         }
     };
 
     const handleScan = async (decodedText: string) => {
-        // Prevent multiple concurrent scans
-        if (isProcessing || result || pendingScan) return;
+        // Prevent multiple concurrent scans with a synchronous lock
+        if (isProcessingRef.current || result || pendingScan) return;
+
+        isProcessingRef.current = true;
+        setIsProcessing(true);
 
         // Immediately pause scanner
         if (scannerRef.current) {
@@ -146,6 +151,7 @@ const ScannerKiosk: React.FC = () => {
 
         } catch (err: any) {
             console.error("Scan processing error:", err);
+            isProcessingRef.current = false;
             setIsProcessing(false);
             resetScanner();
         }
@@ -154,6 +160,8 @@ const ScannerKiosk: React.FC = () => {
     const resetScanner = async () => {
         setResult(null);
         setPendingScan(null);
+        isProcessingRef.current = false;
+        setIsProcessing(false);
         if (scannerRef.current && scannerRef.current.getState() === 3) { // 3 is PAUSED
             try {
                 await scannerRef.current.resume();
@@ -164,9 +172,10 @@ const ScannerKiosk: React.FC = () => {
     };
 
     useEffect(() => {
+        let isMounted = true;
         const config = {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
+            qrbox: { width: 450, height: 450 },
             aspectRatio: 1.0,
         };
 
@@ -182,18 +191,42 @@ const ScannerKiosk: React.FC = () => {
             config,
             handleScan,
             () => { } // Ignored for performance, logging every failure is noisy
-        ).catch((err) => {
-            console.error("Html5Qrcode Start Error:", err);
-            setCameraError("Acceso denegado. Por favor habilita la cámara para usar el modo kiosco.");
+        ).then(() => {
+            // If the component unmounted while starting, stop it immediately
+            if (!isMounted && scanner) {
+                scanner.stop().catch(e => console.error("Late stop failure:", e));
+            }
+        }).catch((err) => {
+            if (isMounted) {
+                console.error("Html5Qrcode Start Error:", err);
+                setCameraError("Acceso denegado. Por favor habilita la cámara para usar el modo kiosco.");
+            }
         });
 
         // Cleanup: Absolute requirement to stop hardware usage
         return () => {
-            if (scannerRef.current) {
-                if (scannerRef.current.isScanning) {
-                    scannerRef.current.stop().catch(e => console.error("Scanner stop failure:", e));
-                }
+            isMounted = false;
+            // Store a reference to the scanner to avoid race conditions with scannerRef
+            const scannerToStop = scannerRef.current;
+
+            if (scannerToStop) {
+                // Use a more aggressive stopping logic
+                const stopScanner = async () => {
+                    try {
+                        const state = scannerToStop.getState();
+                        // 2 is SCANNING, 3 is PAUSED
+                        if (state === 2 || state === 3) { // SCANNING or PAUSED
+                            await scannerToStop.stop();
+                            scannerToStop.clear();
+                            console.log("Scanner stopped successfully");
+                        }
+                    } catch (e) {
+                        console.error("Critical: Failed to release camera hardware:", e);
+                    }
+                };
+                stopScanner();
             }
+
             if (audioContextRef.current) {
                 audioContextRef.current.close().catch(e => console.error("AudioContext close failure:", e));
             }
@@ -202,8 +235,8 @@ const ScannerKiosk: React.FC = () => {
 
     return (
         <div className="relative w-full h-screen bg-[#F9FAF7] flex items-center justify-center overflow-hidden p-4 md:p-8">
-            {/* Container with premium glassmorphism shadow */}
-            <div className="w-full max-w-2xl aspect-square relative rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-[12px] border-white z-0 bg-black">
+            {/* Container with premium glassmorphism shadow - Vertical mode */}
+            <div className="w-full max-w-2xl aspect-square relative rounded-[2.5rem] md:rounded-[4rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-[16px] border-white z-0 bg-black">
 
                 {/* The scanner element */}
                 <div id="reader" className="w-full h-full" />
@@ -259,27 +292,27 @@ const ScannerKiosk: React.FC = () => {
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
-                            className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl text-center"
+                            className="bg-white rounded-[2.5rem] p-6 max-w-[320px] w-full shadow-2xl text-center"
                         >
-                            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <AlertTriangle className="w-10 h-10 text-amber-500" />
+                            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <AlertTriangle className="w-6 h-6 text-amber-500" />
                             </div>
-                            <h3 className="text-2xl font-serif font-bold text-[#1E293B] mb-4">¿Asistencia Duplicada?</h3>
-                            <p className="text-gray-500 mb-8 leading-relaxed">
-                                Esta alumna ya registró una entrada hace menos de 30 minutos. ¿Deseas descontar otra clase de forma intencional?
+                            <h3 className="text-xl font-serif font-bold text-[#1E293B] mb-2">¿Asistencia Duplicada?</h3>
+                            <p className="text-[11px] text-gray-500 mb-6 leading-relaxed">
+                                Esta alumna ya registró una entrada hace menos de 30 minutos. ¿Deseas descontar otra clase?
                             </p>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3">
                                 <button
                                     onClick={resetScanner}
-                                    className="py-4 rounded-2xl font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-colors uppercase tracking-widest text-[10px]"
+                                    className="py-3 rounded-xl font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-colors uppercase tracking-widest text-[9px]"
                                 >
-                                    No, cancelar
+                                    Cancelar
                                 </button>
                                 <button
                                     onClick={() => executeCheckIn(pendingScan.alumnaId, pendingScan.token)}
-                                    className="py-4 rounded-2xl font-bold text-white bg-[#1E293B] hover:bg-[#334155] transition-all shadow-lg shadow-[#1E293B]/20 uppercase tracking-widest text-[10px]"
+                                    className="py-3 rounded-xl font-bold text-white bg-[#1E293B] hover:bg-[#334155] transition-all shadow-lg uppercase tracking-widest text-[9px]"
                                 >
-                                    Sí, registrar
+                                    Registrar
                                 </button>
                             </div>
                         </motion.div>
@@ -300,58 +333,58 @@ const ScannerKiosk: React.FC = () => {
                             initial={{ scale: 0.9, y: 30, opacity: 0 }}
                             animate={{ scale: 1, y: 0, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="w-full max-w-xl"
+                            className="w-full max-w-[320px]"
                         >
                             {result.success ? (
-                                <Card className="bg-green-500 border-none rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden shadow-[0_30px_70px_rgba(34,197,94,0.4)] text-white">
-                                    <CardContent className="pt-16 pb-12 px-10 flex flex-col items-center text-center">
+                                <Card className="bg-green-500 border-none rounded-[2rem] overflow-hidden shadow-2xl text-white">
+                                    <CardContent className="pt-8 pb-6 px-6 flex flex-col items-center text-center">
                                         <motion.div
                                             initial={{ scale: 0, rotate: -45 }}
                                             animate={{ scale: 1, rotate: 0 }}
                                             transition={{ type: "spring", damping: 10, stiffness: 100 }}
-                                            className="mb-8"
+                                            className="mb-4"
                                         >
-                                            <CheckCircle2 className="w-24 h-24 text-white" />
+                                            <CheckCircle2 className="w-12 h-12 text-white" />
                                         </motion.div>
 
-                                        <Avatar className="w-32 h-32 border-8 border-white/20 mb-6 shadow-xl">
+                                        <Avatar className="w-16 h-16 border-4 border-white/20 mb-4 shadow-xl">
                                             <AvatarImage src={result.photo} className="object-cover" />
-                                            <AvatarFallback className="bg-white/10 text-4xl font-serif">
+                                            <AvatarFallback className="bg-white/10 text-xl font-serif">
                                                 {result.name?.charAt(0)}
                                             </AvatarFallback>
                                         </Avatar>
 
-                                        <h2 className="text-5xl font-serif font-bold mb-3 tracking-tight">¡BIENVENIDA!</h2>
-                                        <p className="text-2xl opacity-90 mb-10 font-medium tracking-wide border-b border-white/20 pb-4 w-full">
+                                        <h2 className="text-2xl font-serif font-bold mb-1 tracking-tight">¡BIENVENIDA!</h2>
+                                        <p className="text-base opacity-90 mb-6 font-medium tracking-wide border-b border-white/20 pb-3 w-full truncate">
                                             {result.name}
                                         </p>
 
-                                        <div className="bg-white/10 backdrop-blur-sm rounded-[2rem] px-8 py-6 w-full border border-white/10">
-                                            <p className="text-xs uppercase tracking-[0.2em] opacity-80 mb-2 font-bold">Clases disponibles</p>
-                                            <p className="text-7xl font-bold tabular-nums tracking-tighter">
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-4 w-full border border-white/10">
+                                            <p className="text-[10px] uppercase tracking-[0.2em] opacity-80 mb-1 font-bold">Clases disponibles</p>
+                                            <p className="text-4xl font-bold tabular-nums tracking-tighter">
                                                 {result.clasesRestantes ?? 0}
                                             </p>
                                         </div>
                                     </CardContent>
                                 </Card>
                             ) : (
-                                <Card className="bg-red-500 border-none rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden shadow-[0_30px_70px_rgba(239,68,68,0.4)] text-white">
-                                    <CardContent className="pt-20 pb-16 px-10 flex flex-col items-center text-center">
+                                <Card className="bg-red-500 border-none rounded-[2rem] overflow-hidden shadow-2xl text-white">
+                                    <CardContent className="pt-10 pb-8 px-8 flex flex-col items-center text-center">
                                         <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1, rotate: [0, -10, 10, -10, 10, 0] }}
                                             transition={{ duration: 0.5 }}
-                                            className="mb-10"
+                                            className="mb-6"
                                         >
-                                            <XCircle className="w-28 h-28 text-white" />
+                                            <XCircle className="w-16 h-16 text-white" />
                                         </motion.div>
-                                        <h2 className="text-5xl font-serif font-bold mb-6 tracking-tight">¡LO SENTIMOS!</h2>
-                                        <p className="text-3xl font-medium opacity-95 leading-snug max-w-[80%] mx-auto">
+                                        <h2 className="text-2xl font-serif font-bold mb-4 tracking-tight">¡LO SENTIMOS!</h2>
+                                        <p className="text-lg font-medium opacity-95 leading-snug">
                                             {result.message || "Error al validar tu acceso"}
                                         </p>
-                                        <div className="mt-12 pt-8 border-t border-white/20 w-full">
-                                            <p className="text-sm uppercase tracking-widest opacity-80 font-semibold italic font-serif">
-                                                Por favor contacta con el personal
+                                        <div className="mt-8 pt-4 border-t border-white/20 w-full">
+                                            <p className="text-[10px] uppercase tracking-widest opacity-80 font-semibold italic">
+                                                Contacta con el personal
                                             </p>
                                         </div>
                                     </CardContent>
@@ -361,7 +394,7 @@ const ScannerKiosk: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 };
 

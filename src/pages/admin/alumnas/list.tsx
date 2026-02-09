@@ -8,6 +8,7 @@ import {
     List,
     Mail,
     Phone,
+    CreditCard,
 } from "lucide-react"
 
 import {
@@ -57,9 +58,12 @@ import { db } from "@/lib/firebase"
 
 export default function AlumnasList() {
     const navigate = useNavigate()
-    const [alumnas, setAlumnas] = React.useState<any[]>([])
+    const [users, setUsers] = React.useState<any[]>([])
+    const [studentsData, setStudentsData] = React.useState<Record<string, any>>({})
     const [loading, setLoading] = React.useState(true)
-    const [viewMode, setViewMode] = React.useState<'list' | 'grid'>('list')
+    const [viewMode, setViewMode] = React.useState<'list' | 'grid'>(
+        typeof window !== 'undefined' && window.innerWidth < 768 ? 'grid' : 'list'
+    )
     const [searchTerm, setSearchTerm] = React.useState("")
     const [filterStatus, setFilterStatus] = React.useState<string>("all")
 
@@ -80,22 +84,35 @@ export default function AlumnasList() {
     }
 
     React.useEffect(() => {
-        // Query for users with role 'student'
-        const q = query(collection(db, "users"), where("role", "==", "student"))
+        const qUsers = query(collection(db, "users"), where("role", "==", "student"))
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const alumnasList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }))
-            setAlumnas(alumnasList)
-            setLoading(false)
+        const unsubUsers = onSnapshot(qUsers, (snapshot) => {
+            setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+            if (loading) setLoading(false)
         })
 
-        return () => unsubscribe()
+        const unsubStudents = onSnapshot(collection(db, "students"), (snapshot) => {
+            const data = snapshot.docs.reduce((acc, doc) => {
+                acc[doc.id] = doc.data()
+                return acc
+            }, {} as any)
+            setStudentsData(data)
+        })
+
+        return () => {
+            unsubUsers()
+            unsubStudents()
+        }
     }, [])
 
-    const filteredAlumnas = alumnas.filter((alumna) => {
+    const mergedAlumnas = React.useMemo(() => {
+        return users.map(user => ({
+            ...user,
+            ...(studentsData[user.id] || {})
+        }))
+    }, [users, studentsData])
+
+    const filteredAlumnas = mergedAlumnas.filter((alumna) => {
         const matchesSearch =
             alumna.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             alumna.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -165,6 +182,7 @@ export default function AlumnasList() {
                                         <DropdownMenuContent className="rounded-xl border-[#e1f2f3]">
                                             <DropdownMenuItem onClick={() => setFilterStatus("all")}>Todos</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setFilterStatus("Activo")}>Activo</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setFilterStatus("Pendiente registro")}>Pendiente registro</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setFilterStatus("Inactivo")}>Inactivo</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -206,30 +224,48 @@ export default function AlumnasList() {
                                     <Table>
                                         <TableHeader className="bg-[#e1f2f3]/30">
                                             <TableRow className="hover:bg-transparent border-b border-[#e1f2f3]">
-                                                <TableHead className="font-bold text-[#1E293B] py-4">Nombre</TableHead>
-                                                <TableHead className="font-bold text-[#1E293B]">Email</TableHead>
-                                                <TableHead className="font-bold text-[#1E293B]">Teléfono</TableHead>
-                                                <TableHead className="font-bold text-[#1E293B]">Plan</TableHead>
-                                                <TableHead className="font-bold text-[#1E293B]">Estado</TableHead>
-                                                <TableHead className="text-right font-bold text-[#1E293B]">Acciones</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] py-4 text-sm">Nombre</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] text-sm">Email</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] text-sm">Teléfono</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] text-sm">Plan</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] text-sm">Estado</TableHead>
+                                                <TableHead className="font-bold text-[#1E293B] text-sm">Pago</TableHead>
+                                                <TableHead className="text-right font-bold text-[#1E293B] text-sm">Acciones</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {filteredAlumnas.map((alumna) => (
                                                 <TableRow key={alumna.id} className="hover:bg-[#e1f2f3]/10 border-b border-[#e1f2f3]/20 transition-colors">
-                                                    <TableCell className="font-medium text-[#1E293B] py-4">{alumna.name}</TableCell>
-                                                    <TableCell className="text-[#475569]">{alumna.email}</TableCell>
-                                                    <TableCell className="text-[#475569]">{alumna.phone || "-"}</TableCell>
+                                                    <TableCell className="font-medium text-[#1E293B] py-4 text-base">{alumna.name}</TableCell>
+                                                    <TableCell className="text-[#475569] text-base">{alumna.email}</TableCell>
+                                                    <TableCell className="text-[#475569] text-base">{alumna.phone || "-"}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="outline" className="border-[#e1f2f3] text-[#8a7f96] font-medium text-[10px]">
+                                                        <Badge variant="outline" className="border-[#e1f2f3] text-[#8a7f96] font-medium text-[12px]">
                                                             {alumna.plan || "Sin plan"}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge
-                                                            className={`${(alumna.status || "Activo") === "Activo" ? "bg-[#e1f2f3] text-[#8a7f96]" : "bg-gray-100 text-gray-400"} hover:bg-[#e1f2f3] border-none text-[9px] font-bold uppercase tracking-wider`}
+                                                            className={`${(alumna.status || "Activo") === "Activo"
+                                                                ? "bg-[#e1f2f3] text-[#8a7f96]"
+                                                                : alumna.status === "Pendiente registro"
+                                                                    ? "bg-amber-100 text-amber-700"
+                                                                    : "bg-gray-100 text-gray-400"
+                                                                } hover:bg-opacity-80 border-none text-[12px] font-bold uppercase tracking-wider`}
                                                         >
                                                             {alumna.status || "Activo"}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`border-none text-[12px] font-bold uppercase tracking-wider flex items-center gap-1 ${alumna.payment_status === "pagado"
+                                                                    ? "bg-green-100 text-green-700"
+                                                                    : "bg-red-100 text-red-700"
+                                                                }`}
+                                                        >
+                                                            {alumna.payment_status === "pendiente" && <CreditCard className="h-3 w-3" />}
+                                                            {alumna.payment_status === "pagado" ? "Pagado" : "Pendiente"}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
@@ -267,53 +303,57 @@ export default function AlumnasList() {
                                     {filteredAlumnas.map((alumna) => (
                                         <Card key={alumna.id} className="border-none shadow-sm hover:shadow-md transition-all group overflow-hidden rounded-2xl bg-white flex flex-col">
                                             <CardHeader className="flex flex-row items-center gap-4 pb-4">
-                                                <div className="h-12 w-12 rounded-full bg-[#e1f2f3] flex items-center justify-center text-[#8a7f96] font-bold text-xl uppercase">
+                                                <div className="h-14 w-14 rounded-full bg-[#e1f2f3] flex items-center justify-center text-[#8a7f96] font-bold text-2xl uppercase">
                                                     {alumna.name?.charAt(0) || "U"}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <CardTitle className="text-base font-serif truncate text-[#1E293B]">{alumna.name}</CardTitle>
-                                                    <Badge
-                                                        className={`${(alumna.status || "Activo") === "Activo" ? "bg-[#e1f2f3] text-[#8a7f96]" : "bg-gray-100 text-gray-400"} border-none text-[8px] font-bold uppercase tracking-wider h-5`}
-                                                    >
-                                                        {alumna.status || "Activo"}
-                                                    </Badge>
+                                                    <CardTitle className="text-lg font-serif truncate text-[#1E293B]">{alumna.name}</CardTitle>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Badge
+                                                            className={`${(alumna.status || "Activo") === "Activo"
+                                                                ? "bg-[#e1f2f3] text-[#8a7f96]"
+                                                                : alumna.status === "Pendiente registro"
+                                                                    ? "bg-amber-100 text-amber-700"
+                                                                    : "bg-gray-100 text-gray-400"
+                                                                } border-none text-[11px] font-bold uppercase tracking-wider h-6`}
+                                                        >
+                                                            {alumna.status || "Activo"}
+                                                        </Badge>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`border-none text-[11px] font-bold uppercase tracking-wider h-6 flex items-center gap-1 ${alumna.payment_status === "pagado"
+                                                                    ? "bg-green-100 text-green-700"
+                                                                    : "bg-red-100 text-red-700"
+                                                                }`}
+                                                        >
+                                                            {alumna.payment_status === "pendiente" && <CreditCard className="h-3 w-3" />}
+                                                            {alumna.payment_status === "pagado" ? "Pagado" : "Pendiente"}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-[#8a7f96] opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="rounded-xl border-[#e1f2f3]">
-                                                        <DropdownMenuItem onClick={() => navigate(`/admin/alumnas/perfil/${alumna.id}`)}>Ver Perfil</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => navigate(`/admin/alumnas/editar/${alumna.id}`)}>Editar</DropdownMenuItem>
-                                                        <DropdownMenuSeparator className="bg-[#e1f2f3]" />
-                                                        <DropdownMenuItem className="text-red-500 focus:text-red-500 focus:bg-red-50" onClick={() => handleDelete(alumna.id)}>Eliminar</DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
                                             </CardHeader>
-                                            <CardContent className="flex-1 flex flex-col gap-4">
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                                                        <Mail className="h-3.5 w-3.5 text-[#8a7f96]" />
+                                            <CardContent className="flex-1 flex flex-col gap-5">
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center gap-2.5 text-sm text-muted-foreground truncate">
+                                                        <Mail className="h-4 w-4 text-[#8a7f96]" />
                                                         {alumna.email}
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <Phone className="h-3.5 w-3.5 text-[#8a7f96]" />
+                                                    <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                                                        <Phone className="h-4 w-4 text-[#8a7f96]" />
                                                         {alumna.phone || "Sin teléfono"}
                                                     </div>
                                                 </div>
 
-                                                <div className="pt-2 mt-auto border-t border-[#e1f2f3]/50 flex items-center justify-between">
-                                                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#8a7f96]">Plan Actual</span>
-                                                    <Badge variant="outline" className="border-[#e1f2f3] text-[#8a7f96] font-medium text-[9px] bg-[#F9FAF7]">
+                                                <div className="pt-3 mt-auto border-t border-[#e1f2f3]/50 flex items-center justify-between">
+                                                    <span className="text-[12px] uppercase font-bold tracking-widest text-[#8a7f96]">Plan Actual</span>
+                                                    <Badge variant="outline" className="border-[#e1f2f3] text-[#8a7f96] font-medium text-[11px] bg-[#F9FAF7] px-2.5 py-0.5">
                                                         {alumna.plan || "Sin plan"}
                                                     </Badge>
                                                 </div>
 
                                                 <Button
                                                     onClick={() => navigate(`/admin/alumnas/perfil/${alumna.id}`)}
-                                                    className="w-full mt-2 bg-white hover:bg-[#e1f2f3]/30 border border-[#e1f2f3] text-[#8a7f96] font-sans uppercase tracking-[0.2em] text-[9px] py-5 rounded-xl transition-all"
+                                                    className="w-full mt-2 bg-[#8a7f96] hover:bg-[#7a6f86] text-white border-none font-sans uppercase tracking-[0.2em] text-[11px] py-6 rounded-xl transition-all font-bold shadow-sm"
                                                 >
                                                     Gestionar Alumna
                                                 </Button>
@@ -326,6 +366,6 @@ export default function AlumnasList() {
                     </Card>
                 </main>
             </SidebarInset>
-        </SidebarProvider>
+        </SidebarProvider >
     )
 }

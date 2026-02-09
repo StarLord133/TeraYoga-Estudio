@@ -48,7 +48,7 @@ export const Hero3D = ({ children }: { children: React.ReactNode }) => {
         <section id="inicio" className="relative w-full min-h-screen bg-[#ffffff] overflow-hidden flex flex-col md:flex-row items-center">
 
             {/* Contenedor del Modelo (Izquierda) */}
-            <div className="w-full md:w-1/2 h-[50vh] md:h-screen relative z-10">
+            <div className="w-full md:w-1/2 h-[50vh] md:h-screen relative z-10 pt-20 md:pt-0">
                 <Canvas
                     shadows
                     dpr={[1, 2]}

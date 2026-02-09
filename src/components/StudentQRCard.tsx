@@ -193,6 +193,20 @@ const StudentQRCard: React.FC = () => {
                         </button>
                     </div>
 
+                    {/* Expiration Date Indicator */}
+                    {student?.fecha_expiracion && (
+                        <div className="mt-6 flex flex-col items-center gap-1">
+                            <p className="text-[10px] uppercase font-bold text-[#1E293B]/30 tracking-[0.15em]">Vigencia hasta</p>
+                            <p className="text-sm font-semibold text-[#1E293B]/70 bg-[#F9FAF7] px-4 py-1 rounded-full border border-[#E8F5E9]">
+                                {new Date(student.fecha_expiracion.seconds * 1000).toLocaleDateString('es-ES', {
+                                    day: '2-digit',
+                                    month: 'long',
+                                    year: 'numeric'
+                                })}
+                            </p>
+                        </div>
+                    )}
+
                     <div className="mt-8 flex items-center gap-2 text-[#1E293B]/40">
                         <ShieldCheck className="h-4 w-4" />
                         <p className="text-[11px] font-medium italic">Acceso encriptado TeraYoga &copy; 2025</p>

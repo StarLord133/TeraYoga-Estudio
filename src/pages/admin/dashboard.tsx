@@ -78,13 +78,15 @@ export default function AdminDashboard() {
             // MRR simulation (approximate based on plan, if we had prices here)
             // For now let's say $1200 per active student as a placeholder or real logic if available
             const activeCount = alumnas.filter(a => a.status === "Activo").length
+            const pendingCount = alumnas.filter(a => a.status === "Pendiente registro").length
 
             setStats(prev => ({
                 ...prev,
                 total: alumnas.length,
                 active: activeCount,
                 expiring: alumnas.filter(a => a.status === "Próximo a Vencer").length,
-                mrr: activeCount * 850 // Mock price average
+                mrr: activeCount * 850,
+                pending: pendingCount
             }))
 
             // Plan distribution for Pie Chart
@@ -292,10 +294,10 @@ export default function AdminDashboard() {
                                 <Table>
                                     <TableHeader className="bg-[#e1f2f3]/30">
                                         <TableRow className="hover:bg-transparent border-[#e1f2f3]">
-                                            <TableHead className="font-bold uppercase tracking-widest text-[9px] text-[#8a7f96]">Nombre</TableHead>
-                                            <TableHead className="font-bold uppercase tracking-widest text-[9px] text-[#8a7f96]">Email</TableHead>
-                                            <TableHead className="font-bold uppercase tracking-widest text-[9px] text-[#8a7f96]">Plan</TableHead>
-                                            <TableHead className="text-right font-bold uppercase tracking-widest text-[9px] text-[#8a7f96]">Estado</TableHead>
+                                            <TableHead className="font-bold uppercase tracking-widest text-[13px] text-[#8a7f96]">Nombre</TableHead>
+                                            <TableHead className="font-bold uppercase tracking-widest text-[13px] text-[#8a7f96]">Email</TableHead>
+                                            <TableHead className="font-bold uppercase tracking-widest text-[13px] text-[#8a7f96]">Plan</TableHead>
+                                            <TableHead className="text-right font-bold uppercase tracking-widest text-[13px] text-[#8a7f96]">Estado</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -310,17 +312,17 @@ export default function AdminDashboard() {
                                         ) : (
                                             recentAlumnas.map((alumna) => (
                                                 <TableRow key={alumna.id} className="hover:bg-[#E8F5E9]/10 border-[#F1F5F9]">
-                                                    <TableCell className="font-medium text-[#1E293B]">
+                                                    <TableCell className="font-medium text-[#1E293B] text-[15px]">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="h-8 w-8 rounded-full bg-[#E8F5E9] flex items-center justify-center text-[10px] font-bold text-[#1E293B]">
+                                                            <div className="h-8 w-8 rounded-full bg-[#E8F5E9] flex items-center justify-center text-xs font-bold text-[#1E293B]">
                                                                 {alumna.name?.charAt(0)}
                                                             </div>
                                                             {alumna.name}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-muted-foreground text-sm">{alumna.email}</TableCell>
+                                                    <TableCell className="text-muted-foreground text-base">{alumna.email}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="outline" className="font-bold text-[9px] uppercase tracking-wider border-[#e1f2f3] text-[#8a7f96] bg-[#e1f2f3]/20 px-2 py-0">
+                                                        <Badge variant="outline" className="font-bold text-[12px] uppercase tracking-wider border-[#e1f2f3] text-[#8a7f96] bg-[#e1f2f3]/20 px-2 py-0">
                                                             {alumna.plan || "Sin plan"}
                                                         </Badge>
                                                     </TableCell>
@@ -328,8 +330,12 @@ export default function AdminDashboard() {
                                                         <Badge
                                                             variant="secondary"
                                                             className={cn(
-                                                                "text-[9px] font-bold uppercase tracking-wider px-2 py-0",
-                                                                alumna.status === "Activo" ? "bg-[#e1f2f3] text-[#8a7f96]" : "bg-[#8a7f96]/10 text-[#8a7f96]"
+                                                                "text-[12px] font-bold uppercase tracking-wider px-2 py-0",
+                                                                alumna.status === "Activo"
+                                                                    ? "bg-[#e1f2f3] text-[#8a7f96]"
+                                                                    : alumna.status === "Pendiente registro"
+                                                                        ? "bg-amber-100 text-amber-700"
+                                                                        : "bg-[#8a7f96]/10 text-[#8a7f96]"
                                                             )}
                                                         >
                                                             {alumna.status || "Activo"}
