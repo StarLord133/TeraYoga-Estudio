@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/breadcrumb"
 import { useNavigate, useParams } from "react-router-dom"
 import { doc, updateDoc, collection, query, where, onSnapshot, orderBy, limit, Timestamp, getDocs, deleteDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { db, functions } from "@/lib/firebase"
+import { httpsCallable } from "firebase/functions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
     Dialog,
@@ -78,6 +79,22 @@ export default function AlumnaProfile() {
     const [selectedPlanId, setSelectedPlanId] = React.useState("")
     const [isPaidOnRenewal, setIsPaidOnRenewal] = React.useState(true)
     const [isConfirmingPayment, setIsConfirmingPayment] = React.useState(false)
+    const [isSendingEmail, setIsSendingEmail] = React.useState(false)
+
+    const handleResendEmail = async () => {
+        if (!alumna?.email || !alumna?.name) return;
+        setIsSendingEmail(true);
+        try {
+            const resendFn = httpsCallable(functions, "resendWelcomeEmail");
+            await resendFn({ email: alumna.email, displayName: alumna.name });
+            toast.success(`Correo de registro reenviado a ${alumna.email}`);
+        } catch (error: any) {
+            console.error("Error al reenviar correo:", error);
+            toast.error("Error al reenviar el correo: " + error.message);
+        } finally {
+            setIsSendingEmail(false);
+        }
+    };
 
     React.useEffect(() => {
         async function fetchData() {
@@ -347,13 +364,22 @@ export default function AlumnaProfile() {
                                     >
                                         Renueva Plan
                                     </Button>
-                                    {studentData?.payment_status === 'pendiente' && (
+                                    {studentData?.payment_status !== 'pagado' && (
                                         <Button
                                             className="w-full border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-sans uppercase tracking-[0.2em] text-[10px] py-6 font-bold"
                                             variant="ghost"
                                             onClick={() => setIsConfirmingPayment(true)}
                                         >
                                             <CreditCard className="h-3.5 w-3.5 mr-2" /> Realizar Pago Pendiente
+                                        </Button>
+                                    )}
+                                    {alumna?.status === "Pendiente registro" && (
+                                        <Button
+                                            className="w-full bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-xl font-sans uppercase tracking-[0.2em] text-[10px] py-6 font-bold"
+                                            onClick={handleResendEmail}
+                                            disabled={isSendingEmail}
+                                        >
+                                            {isSendingEmail ? "Enviando..." : "Reenviar Correo de Registro"}
                                         </Button>
                                     )}
                                 </div>

@@ -5,7 +5,7 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-export const createStudentOnboarding = functions.https.onCall(async (data, context) => {
+export const createStudentOnboarding = functions.https.onCall(async (data: any, context: any) => {
     try {
         // 1. Validar autenticación preliminar
         if (!context.auth) {
@@ -148,7 +148,7 @@ export const createStudentOnboarding = functions.https.onCall(async (data, conte
     }
 });
 
-export const activateStudent = functions.https.onCall(async (data, context) => {
+export const activateStudent = functions.https.onCall(async (data: any, context: any) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado.");
     }
@@ -185,7 +185,7 @@ export const activateStudent = functions.https.onCall(async (data, context) => {
  */
 export const processCheckIn = functions
     .runWith({ memory: "512MB" })
-    .https.onCall(async (data, context) => {
+    .https.onCall(async (data: any, context: any) => {
         // 1. Validar Seguridad (Solo Admins)
         if (!context.auth) {
             throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado.");
@@ -213,7 +213,7 @@ export const processCheckIn = functions
         }
 
         try {
-            const result = await db.runTransaction(async (transaction) => {
+            const result = await db.runTransaction(async (transaction: any) => {
                 const studentRef = db.collection("students").doc(alumnaId);
                 const userRef = db.collection("users").doc(alumnaId);
 
@@ -291,7 +291,7 @@ export const processCheckIn = functions
  */
 export const onUserCreated = functions.firestore
     .document("users/{userId}")
-    .onCreate(async (snap, context) => {
+    .onCreate(async (snap: any, context: any) => {
         const userData = snap.data();
         const userId = context.params.userId;
         const role = userData.role || "student";
@@ -303,3 +303,65 @@ export const onUserCreated = functions.firestore
             functions.logger.error(`Error al establecer claims para ${userId}:`, error);
         }
     });
+
+export const resendWelcomeEmail = functions.https.onCall(async (data: any, context: any) => {
+    try {
+        if (!context.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
+        }
+
+        const callerUid = context.auth.uid;
+        const callerDoc = await db.collection("users").doc(callerUid).get();
+        const callerData = callerDoc.data();
+
+        if (!callerDoc.exists || !callerData || callerData.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Solo los administradores pueden realizar esta acción.");
+        }
+
+        const { email, displayName } = data;
+        if (!email || !displayName) {
+            throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: correo o nombre.");
+        }
+
+        let resetLink;
+        try {
+            const defaultLink = await admin.auth().generatePasswordResetLink(email);
+            resetLink = defaultLink.replace(
+                "terayoga-estudio.firebaseapp.com/__/auth/action",
+                "terayoga-estudio.web.app/auth/action"
+            );
+        } catch (resetError: any) {
+            console.error("Reset link error:", resetError);
+            resetLink = "#error-link-config";
+        }
+
+        const mailRef = db.collection("mail").doc();
+        await mailRef.set({
+            to: email,
+            message: {
+                subject: "¡Bienvenida a TeraYoga!",
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #E8F5E9; border-radius: 12px;">
+                        <h1 style="color: #1E293B; font-family: serif;">¡Namasté, ${displayName}!</h1>
+                        <p style="color: #64748b;">Tu cuenta ha sido creada exitosamente en TeraYoga Estudio.</p>
+                        <p style="color: #64748b;">Para comenzar, es necesario que configures tu contraseña haciendo clic en el siguiente botón:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${resetLink}" style="background-color: #1E293B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Configurar mi Cuenta</a>
+                        </div>
+                        <p style="font-size: 12px; color: #94a3b8;">Si el botón no funciona, copia y pega este enlace en tu navegador: <br> ${resetLink}</p>
+                        <hr style="border: none; border-top: 1px solid #E8F5E9; margin: 20px 0;">
+                        <p style="font-size: 12px; color: #94a3b8; text-align: center;">TeraYoga Estudio &copy; 2025</p>
+                    </div>
+                `,
+            },
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error global in resendWelcomeEmail:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError("internal", error.message || "Error inesperado al reenviar correo.");
+    }
+});

@@ -16,7 +16,7 @@ import {
     User,
     MessageCircle
 } from "lucide-react"
-import logo from "@/assets/imagotipo-purpura.png"
+import logo from "@/assets/IMAGOTIPO-PURPURA.png"
 import logoHorizontalNegro from "@/assets/LOGOTIPO-HOR-NEGRO.png"
 import imgEstudio1 from "@/assets/imagen1-estudio.jpg"
 import imgEstudio2 from "@/assets/imagen2-estudio.jpeg"

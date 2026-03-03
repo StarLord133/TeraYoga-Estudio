@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
     SidebarInset,
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { useNavigate } from "react-router-dom"
 import { httpsCallable } from "firebase/functions"
-import { collection, getDocs, query, orderBy } from "firebase/firestore"
+import { collection, getDocs, query, orderBy, doc, updateDoc } from "firebase/firestore"
 import { functions, db } from "@/lib/firebase"
 
 export default function AddAlumna() {
@@ -101,6 +102,7 @@ export default function AddAlumna() {
         const formData = new FormData(event.currentTarget)
         const name = formData.get("name") as string
         const email = formData.get("email") as string
+        const isPaid = formData.get("isPaid") === "on"
         // Combinar lada + numero y limpiar caracteres no numéricos
         const phone = (countryCode + phoneValue).trim().replace(/[^\d+]/g, "");
         const planId = formData.get("plan") as string
@@ -108,12 +110,19 @@ export default function AddAlumna() {
         try {
             const onboardingFn = httpsCallable(functions, "createStudentOnboarding");
 
-            await onboardingFn({
+            const result = await onboardingFn({
                 email,
                 displayName: name,
                 phone,
                 planId
             });
+
+            if ((result.data as any).uid) {
+                const uid = (result.data as any).uid;
+                await updateDoc(doc(db, "students", uid), {
+                    payment_status: isPaid ? "pagado" : "pendiente"
+                });
+            }
 
             setSuccess(true)
             setTimeout(() => {
@@ -250,6 +259,17 @@ export default function AddAlumna() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+
+                                    <div className="flex items-center space-x-3 p-4 bg-[#F9FAF7] rounded-2xl border border-[#E8F5E9]">
+                                        <Checkbox
+                                            id="isPaid"
+                                            name="isPaid"
+                                            className="border-[#1E293B] data-[state=checked]:bg-[#1E293B] data-[state=checked]:text-white h-5 w-5 rounded-md"
+                                        />
+                                        <label htmlFor="isPaid" className="text-sm font-bold text-[#1E293B] cursor-pointer">
+                                            Plan pagado (Se omitirá el estado estado de pago pendiente)
+                                        </label>
                                     </div>
 
                                     {success && (

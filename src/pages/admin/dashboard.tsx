@@ -5,6 +5,8 @@ import {
     DollarSign,
     RotateCcw,
     CheckCircle2,
+    Mail,
+    Loader2,
 } from "lucide-react"
 
 import {
@@ -51,7 +53,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieCha
 
 import { useNavigate } from "react-router-dom"
 import { collection, query, where, onSnapshot, orderBy, Timestamp } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { httpsCallable } from "firebase/functions"
+import { db, functions } from "@/lib/firebase"
 
 const PLAN_COLORS = ["#8a7f96", "#b7afbe", "#e1f2f3", "#1e293b", "#334155"]
 
@@ -68,6 +71,21 @@ export default function AdminDashboard() {
     const [attendanceData, setAttendanceData] = React.useState<any[]>([])
     const [planData, setPlanData] = React.useState<any[]>([])
     const [loading, setLoading] = React.useState(true)
+    const [sendingEmailId, setSendingEmailId] = React.useState<string | null>(null)
+
+    const handleResendEmail = async (email: string, id: string, name: string) => {
+        setSendingEmailId(id)
+        try {
+            const resendFn = httpsCallable(functions, "resendWelcomeEmail")
+            await resendFn({ email, displayName: name })
+            alert(`Correo de registro reenviado a ${email}`)
+        } catch (error: any) {
+            console.error("Error al reenviar correo:", error)
+            alert("Error al reenviar el correo: " + error.message)
+        } finally {
+            setSendingEmailId(null)
+        }
+    }
 
     React.useEffect(() => {
         // 1. Fetch Students Stats
@@ -327,19 +345,37 @@ export default function AdminDashboard() {
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className={cn(
-                                                                "text-[12px] font-bold uppercase tracking-wider px-2 py-0",
-                                                                alumna.status === "Activo"
-                                                                    ? "bg-[#e1f2f3] text-[#8a7f96]"
-                                                                    : alumna.status === "Pendiente registro"
-                                                                        ? "bg-amber-100 text-amber-700"
-                                                                        : "bg-[#8a7f96]/10 text-[#8a7f96]"
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className={cn(
+                                                                    "text-[12px] font-bold uppercase tracking-wider px-2 py-0",
+                                                                    alumna.status === "Activo"
+                                                                        ? "bg-[#e1f2f3] text-[#8a7f96]"
+                                                                        : alumna.status === "Pendiente registro"
+                                                                            ? "bg-amber-100 text-amber-700"
+                                                                            : "bg-[#8a7f96]/10 text-[#8a7f96]"
+                                                                )}
+                                                            >
+                                                                {alumna.status || "Activo"}
+                                                            </Badge>
+                                                            {alumna.status === "Pendiente registro" && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                                                                    title="Reenviar correo de bienvenida"
+                                                                    onClick={() => handleResendEmail(alumna.email, alumna.id, alumna.name)}
+                                                                    disabled={sendingEmailId === alumna.id}
+                                                                >
+                                                                    {sendingEmailId === alumna.id ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <Mail className="h-4 w-4" />
+                                                                    )}
+                                                                </Button>
                                                             )}
-                                                        >
-                                                            {alumna.status || "Activo"}
-                                                        </Badge>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
